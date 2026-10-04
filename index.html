@@ -48,8 +48,12 @@ code{word-break:break-all;font-size:13px}
 <script>
 var SB_URL='https://ubdujwbgxkngwphvspxl.supabase.co';
 var SB_KEY='sb_publishable_rf2emhQJuakQ3A0Huet4RA_eAe5ATNZ';
+var TERMS_URL='';
+var PAY_INFO='';
+var MODE=(new URLSearchParams(location.search).get('r')||'').toLowerCase();
+var REQUIRE_TERMS=false;
 var sb=supabase.createClient(SB_URL,SB_KEY);
-var U=null,B=null,P=[],MB=[],H=[],tab='vente',T={},mode='v',C={},M='',Q=[],O=[],lbl='',nr='serveur',MC='',MN='',chan=null;
+var U=null,B=null,P=[],MB=[],H=[],tab='vente',T={},mode='v',C={},M='',Q=[],O=[],lbl='',nr='serveur',MC='',MN='',chan=null,BN='';
 try{Q=JSON.parse(localStorage.getItem('sb.q')||'[]')}catch(e){}
 var KL={v:'Vente',o:'Offert',c:'Cassé',p:'Patron',r:'Réception',a:'Correction'};
 function sq(){try{localStorage.setItem('sb.q',JSON.stringify(Q))}catch(e){}}
@@ -62,12 +66,13 @@ function low(p){return p.stock<=p.min_stock}
 function err(e){var m=(e&&e.message)||'Erreur';if(/row-level|permission/i.test(m))return 'Action non autorisée, ou abonnement expiré.';if(/fetch|network/i.test(m))return 'Pas de connexion.';return m}
 function val(id){var e=document.getElementById(id);return e?e.value.trim():''}
 
-function auth(){return '<h1>StockBar</h1><p class="sub">Connectez-vous pour gérer votre stock.</p><div class="card"><label>E-mail<input id="em" type="email" autocomplete="email"></label><label style="display:block;margin-top:8px">Mot de passe (6 caractères minimum)<input id="pw" type="password" autocomplete="current-password"></label>'+(M?'<div class="w">'+esc(M)+'</div>':'')+'<div class="row"><button class="btn g" data-a="signin">Se connecter</button><button class="btn alt g" data-a="signup">Créer un compte</button></div></div>'}
-function nobar(){return '<h1>Bienvenue</h1><div class="card"><b>Vous êtes patron ?</b><label style="display:block">Nom de votre bar<input id="bn" placeholder="Nom du bar"></label>'+(M?'<div class="w">'+esc(M)+'</div>':'')+'<button class="btn" style="width:100%;margin-top:10px" data-a="newbar">Créer mon bar</button></div><div class="card"><b>Vous êtes serveur ou au guichet ?</b><p class="small">Donnez ce code à votre patron, puis appuyez sur Actualiser.</p><code>'+esc(U.id)+'</code><button class="btn alt" style="width:100%;margin-top:10px" data-a="reload">Actualiser</button></div><button class="btn alt" style="width:100%" data-a="out">Se déconnecter</button>'}
+function auth(){return '<h1>'+(MODE==='employe'?'StockBar : espace employé':MODE==='patron'?'StockBar : espace patron':'StockBar')+'</h1><p class="sub">'+(MODE==='employe'?'Créez votre compte pour recevoir votre code, ou connectez-vous.':'Connectez-vous pour gérer votre stock.')+'</p><div class="card"><label>E-mail<input id="em" type="email" autocomplete="email"></label><label style="display:block;margin-top:8px">Mot de passe (6 caractères minimum)<input id="pw" type="password" autocomplete="current-password"></label>'+(M?'<div class="w">'+esc(M)+'</div>':'')+'<div class="row"><button class="btn g" data-a="signin">Se connecter</button><button class="btn alt g" data-a="signup">Créer un compte</button></div></div>'}
+function nobar(){return '<h1>Bienvenue</h1>'+(MODE==='employe'?'':'<div class="card"><b>Vous êtes patron ?</b><label style="display:block">Nom de votre bar<input id="bn" placeholder="Nom du bar" value="'+esc(BN)+'"></label>'+(M?'<div class="w">'+esc(M)+'</div>':'')+''+(REQUIRE_TERMS?'<label class="row" style="margin-top:12px"><input id="tc" type="checkbox" style="width:26px;height:26px;min-height:26px;margin:0;flex-shrink:0"><span class="small">J\'ai lu et j\'accepte les conditions d\'abonnement'+(TERMS_URL?' (<a href="'+esc(TERMS_URL)+'" target="_blank" rel="noopener">lire</a>)':'')+'.</span></label>':'')+'<button class="btn" style="width:100%;margin-top:10px" data-a="newbar">Créer mon bar</button></div>')+(MODE==='patron'?'':'<div class="card"><b>Vous êtes serveur ou au guichet ?</b><p class="small">Donnez ce code à votre patron, puis appuyez sur Actualiser.</p><code>'+esc(U.id)+'</code><button class="btn alt" style="width:100%;margin-top:10px" data-a="reload">Actualiser</button></div>')+'<button class="btn alt" style="width:100%" data-a="out">Se déconnecter</button>'}
 function head(){
  var end=new Date(B.paid_until&&new Date(B.paid_until)>new Date(B.trial_ends)?B.paid_until:B.trial_ends),d=Math.ceil((end-Date.now())/864e5);
- var st=d>0?(B.paid_until&&new Date(B.paid_until)>Date.now()?'Abonnement actif':'Essai gratuit : '+d+' jour(s)'):'Abonnement expiré';
- return '<div class="row" style="margin:0 0 12px"><div class="g"><b>'+esc(B.name)+'</b><div class="small">'+st+(Q.length?' · '+Q.length+' en attente d\'envoi':'')+'</div></div><button class="btn alt s" data-a="out">Quitter</button></div>'+(d<=0?'<div class="w">Votre abonnement est expiré : les nouvelles ventes sont refusées.</div>':'')+(M?'<div class="w">'+esc(M)+'</div>':'')}
+ var fd=end.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
+ var st=d>0?(B.paid_until&&new Date(B.paid_until)>new Date(B.trial_ends)?'Abonnement actif jusqu\'au ':'Essai gratuit jusqu\'au ')+fd+' ('+d+' j)':'Abonnement expiré';
+ return '<div class="row" style="margin:0 0 12px"><div class="g"><b>'+esc(B.name)+'</b><div class="small">'+st+(Q.length?' · '+Q.length+' en attente d\'envoi':'')+'</div></div><button class="btn alt s" data-a="out">Quitter</button></div>'+(d<=0?'<div class="w">Votre abonnement est expiré : les nouvelles ventes sont refusées.'+(PAY_INFO?' '+esc(PAY_INFO):'')+'</div>':(d<=5&&isP()?'<div class="w">Il reste '+d+' jour(s). Pensez à renouveler votre abonnement.'+(PAY_INFO?' '+esc(PAY_INFO):'')+'</div>':''))+(M?'<div class="w">'+esc(M)+'</div>':'')}
 function vente(){
  var ch=[['v','Vente'],['o','Offert'],['c','Cassé']].concat(isP()?[['p','Patron']]:[]);
  var h='<h1>Vente rapide</h1><div class="chips">'+ch.map(x=>'<button class="chip'+(mode===x[0]?' on':'')+'" data-a="mode" data-v="'+x[0]+'">'+x[1]+'</button>').join('')+'</div>';
@@ -142,7 +147,7 @@ document.addEventListener('click',async function(e){
   await enter(r.data.session);return}
  if(a==='out'){try{sb.removeAllChannels()}catch(x){}chan=null;await sb.auth.signOut();U=null;B=null;M='';render();return}
  if(a==='reload'){M='';await loadBar();return}
- if(a==='newbar'){var nm=val('bn');if(!nm){M='Entrez le nom du bar.';render();return}r=await sb.from('bars').insert({name:nm,owner_id:U.id});if(r.error){M=err(r.error);render();return}M='';await loadBar();return}
+ if(a==='newbar'){var nm=val('bn');BN=nm;if(!nm){M='Entrez le nom du bar.';render();return}if(REQUIRE_TERMS&&!document.getElementById('tc').checked){M='Vous devez accepter les conditions pour créer votre bar.';render();return}r=await sb.from('bars').insert(REQUIRE_TERMS?{name:nm,owner_id:U.id,terms_accepted_at:new Date().toISOString(),terms_version:'1'}:{name:nm,owner_id:U.id});if(r.error){M=err(r.error);render();return}M='';BN='';await loadBar();return}
  if(a==='tab'){tab=b.dataset.v;M='';if(tab==='soir'){await loadH()}if(tab==='cmd'){await loadO()}}
  else if(a==='mode'){mode=b.dataset.v}
  else if(a==='add'){T[id]=(T[id]||0)+1}
