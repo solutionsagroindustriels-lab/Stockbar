@@ -54,7 +54,7 @@ var WAIT_MIN=10;
 var MODE=(new URLSearchParams(location.search).get('r')||'').toLowerCase();
 var REQUIRE_TERMS=false;
 var sb=supabase.createClient(SB_URL,SB_KEY);
-var U=null,B=null,P=[],MB=[],H=[],tab='vente',T={},mode='v',C={},M='',Q=[],O=[],lbl='',nr='serveur',MC='',MN='',chan=null,BN='',CMP=false,CASH='',CX=null,LL=0;
+var U=null,B=null,P=[],MB=[],H=[],tab='vente',T={},mode='v',C={},M='',Q=[],O=[],lbl='',nr='serveur',MC='',MN='',chan=null,BN='',CMP=false,CASH='',CX=null,LL=0,WL=[],WS='',BON='';
 try{Q=JSON.parse(localStorage.getItem('sb.q')||'[]')}catch(e){}
 var KL={v:'Vente',o:'Offert',c:'Cassé',p:'Patron',r:'Réception',a:'Correction'};
 function sq(){try{localStorage.setItem('sb.q',JSON.stringify(Q))}catch(e){}}
@@ -78,6 +78,7 @@ function vente(){
  var ch=[['v','Vente'],['o','Offert'],['c','Cassé']].concat(isP()?[['p','Patron']]:[]);
  var h='<h1>Vente rapide</h1><div class="chips">'+ch.map(x=>'<button class="chip'+(mode===x[0]?' on':'')+'" data-a="mode" data-v="'+x[0]+'">'+x[1]+'</button>').join('')+'</div>';
  if(B.role==='serveur'&&mode==='v')h+='<input data-lb="1" placeholder="Table ou client (facultatif)" value="'+esc(lbl)+'" style="margin:0 0 12px">';
+ if(isS()&&mode==='v'&&WL.length)h+='<div class="small">Serveur qui a pris la commande (facultatif)</div><div class="chips" style="margin-top:6px">'+WL.map(w=>'<button class="chip'+(WS===w.id?' on':'')+'" data-a="wsel" data-id="'+w.id+'">'+esc(w.name)+'</button>').join('')+'</div>'+(WS?'<input data-bon="1" type="number" inputmode="numeric" min="1" placeholder="N° du bon (facultatif)" value="'+esc(BON)+'" style="margin:0 0 12px">':'');
  if(!P.length)return h+'<div class="card">Aucun produit. '+(isP()?'Ajoutez-en dans l\'onglet Stock.':'Demandez à votre patron d\'en ajouter.')+'</div>';
  h+='<div class="grid">'+P.map(p=>'<button class="pb'+(T[p.id]?' on':'')+(low(p)?' low':'')+'" data-a="add" data-id="'+p.id+'"><b>'+esc(p.name)+'</b><span>Reste '+p.stock+'</span>'+(T[p.id]?'<i class="bd">'+T[p.id]+'</i>':'')+'</button>').join('')+'</div>';
  var n=0;for(var k in T)n+=T[k];
@@ -88,10 +89,15 @@ function stock(){
  var h='<h1>Stock</h1><div class="card"><b>Valeur du stock</b><div style="font-size:22px;font-weight:800">'+fm(tv)+'</div><div class="small">Au prix d\'achat. Renseignez le prix d\'achat de chaque produit.</div></div><div class="card"><b>Nouveau produit</b><input id="nn" placeholder="Nom du produit"><div class="row"><div class="g"><span class="small">En stock</span><input id="ns" type="number" inputmode="numeric" min="0" value="0"></div><div class="g"><span class="small">Seuil</span><input id="nm" type="number" inputmode="numeric" min="0" value="5"></div><div class="g"><span class="small">Prix</span><input id="np" type="number" inputmode="numeric" min="0" value="0"></div></div><div class="row"><div class="g"><span class="small">Prix d\'achat (par unité)</span><input id="nc" type="number" inputmode="numeric" min="0" value="0"></div></div><button class="btn" style="width:100%;margin-top:10px" data-a="newp">Ajouter</button></div>';
  return h+P.map(p=>'<div class="card"><div class="row" style="margin:0"><b class="g">'+esc(p.name)+'</b><span class="small">Stock : <b>'+p.stock+'</b></span></div><div class="row"><span class="small g">Prix</span><input class="n" type="number" inputmode="numeric" min="0" value="'+p.price+'" data-f="price" data-id="'+p.id+'"><span class="small">Seuil</span><input class="n" type="number" inputmode="numeric" min="0" value="'+p.min_stock+'" data-f="min_stock" data-id="'+p.id+'"></div><div class="row"><span class="small g">Prix d\'achat</span><input class="n" style="width:100px" type="number" inputmode="numeric" min="0" value="'+(p.cost||0)+'" data-f="cost" data-id="'+p.id+'"></div><div class="row"><span class="small g">Réception</span><button class="btn alt s" data-a="plus" data-n="1" data-id="'+p.id+'">+1</button><button class="btn alt s" data-a="plus" data-n="6" data-id="'+p.id+'">+6</button><button class="btn alt s" data-a="plus" data-n="12" data-id="'+p.id+'">+12</button></div><button class="btn alt s" style="margin-top:10px" data-a="arch" data-id="'+p.id+'">Retirer ce produit</button></div>').join('')}
 function who(id){var m=MB.filter(x=>x.user_id===id)[0];return m?m.display_name:'?'}
+function wname(id){var w=WL.filter(x=>x.id===id)[0];return w?w.name:'Ancien serveur'}
 function soir(){
  var t0=today(),rev=0,loss=0,lq=0,h='<h1>Soir</h1>';
  H.forEach(l=>{if(new Date(l.created_at).getTime()<t0)return;var p=find(l.product_id),pr=p?Number(p.price):0;if(l.kind==='v')rev+=l.qty*pr;else if('ocp'.indexOf(l.kind)>-1){loss+=l.qty*pr;lq+=l.qty}});
  h+='<div class="card"><b>Aujourd\'hui</b><div class="row"><div class="g"><div class="small">Recette attendue</div><b>'+fm(rev)+'</b></div><div class="g"><div class="small">Pertes déclarées</div><b>'+fm(loss)+'</b> <span class="small">('+lq+')</span></div></div><p class="small" style="margin:8px 0 0">Comparez la recette attendue avec l\'argent en caisse.</p></div>';
+ if(WL.length||H.some(function(l){return l.waiter_id})){var wt={};H.forEach(function(l){if(l.kind!=='v'||!l.waiter_id||new Date(l.created_at).getTime()<t0)return;var p=find(l.product_id),o=wt[l.waiter_id]||(wt[l.waiter_id]={t:0,b:{}});o.t+=l.qty*(p?Number(p.price):0);if(l.bon_no)o.b[l.bon_no]=1});
+  var ids=Object.keys(wt);
+  h+='<div class="card"><b>Par serveur</b>'+(ids.length?ids.map(function(i){var o=wt[i],ns=Object.keys(o.b).map(Number).sort(function(a,b){return a-b}),ms=[];if(ns.length>1&&ns[ns.length-1]-ns[0]<300){for(var n=ns[0];n<=ns[ns.length-1];n++)if(!o.b[n])ms.push(n)}
+   return '<div style="margin-top:10px"><div class="row" style="margin:0"><b class="g">'+esc(wname(i))+'</b><b>'+fm(o.t)+'</b></div><div class="small">'+ns.length+' bon(s) saisi(s)</div>'+(ms.length?'<div class="w">Bons manquants : '+ms.slice(0,15).join(', ')+'. Demandez-les au serveur : non saisis ou annulés ?</div>':'')+'</div>'}).join(''):'<div class="small">Aucune vente saisie par le guichet aujourd\'hui.</div>')+'<p class="small" style="margin:8px 0 0">Comparez le total de chaque serveur avec l\'argent qu\'il remet.</p></div>'}
  var vt=0,vc=0,vm=0,any=false;
  P.forEach(function(p){var c=C[p.id];if(!(c===undefined||c==='')){any=true;vc+=(+c||0)*Number(p.cost||0)}vt+=p.stock*Number(p.cost||0)});
  h+='<div class="card"><b>Inventaire de fermeture</b><p class="small" style="margin:4px 0 8px">'+(CMP?'Résultat de la comparaison.':'Comptage en aveugle : saisissez le nombre compté pour chaque produit, sans voir le stock attendu.')+'</p>';
@@ -105,12 +111,13 @@ function soir(){
   if(CASH!==''){var dc=rev-(+CASH||0);h+='<div class="'+(dc>0?'w':'small')+'" style="margin-top:8px">'+(dc>0?'Il manque '+fm(dc)+' en caisse':dc<0?'En trop : '+fm(-dc):'Caisse exacte')+'</div>'}
   h+='<div class="row"><button class="btn alt g" data-a="cmpno">Recommencer</button><button class="btn g" data-a="close">Valider</button></div>'}
  h+='</div>';
- h+='<div class="card"><b>Historique</b>'+(H.length?'':'<div class="small">Rien pour le moment.</div>')+H.slice(0,30).map(l=>{var p=find(l.product_id),g='vocp'.indexOf(l.kind)>-1?'-'+l.qty:(l.qty>0?'+':'')+l.qty;return '<div class="small" style="margin-top:6px">'+new Date(l.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+' · '+KL[l.kind]+' · '+esc(p?p.name:'')+' · '+g+' · '+esc(who(l.by_user))+'</div>'}).join('')+'</div>';
+ h+='<div class="card"><b>Historique</b>'+(H.length?'':'<div class="small">Rien pour le moment.</div>')+H.slice(0,30).map(l=>{var p=find(l.product_id),g='vocp'.indexOf(l.kind)>-1?'-'+l.qty:(l.qty>0?'+':'')+l.qty;return '<div class="small" style="margin-top:6px">'+new Date(l.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+' · '+KL[l.kind]+' · '+esc(p?p.name:'')+' · '+g+' · '+esc(who(l.by_user))+(l.waiter_id?' · pour '+esc(wname(l.waiter_id))+(l.bon_no?' · bon '+l.bon_no:''):'')+'</div>'}).join('')+'</div>';
  return h}
 function equipe(){
  var h='<h1>'+(isP()?'Équipe':'Mon compte')+'</h1><div class="card"><b>Mon code</b><p class="small">Votre patron en a besoin pour vous ajouter.</p><code>'+esc(U.id)+'</code></div>';
  if(!isP())return h;
  h+='<div class="card"><b>Ajouter un employé</b><p class="small">L\'employé crée son compte, puis vous envoie son code.</p><div class="chips" style="margin-top:8px">'+[['serveur','Serveur'],['guichet','Guichet']].map(function(x){return '<button class="chip'+(nr===x[0]?' on':'')+'" data-a="nrole" data-v="'+x[0]+'">'+x[1]+'</button>'}).join('')+'</div><input id="mc" placeholder="Code de l employé" value="'+esc(MC)+'"><input id="mn" placeholder="Prénom" value="'+esc(MN)+'"><button class="btn" style="width:100%;margin-top:10px" data-a="addm">Ajouter</button></div>';
+ h+='<div class="card"><b>Serveurs sans smartphone</b><p class="small">Ajoutez-les par leur prénom : le guichet saisit leurs commandes. Aucun compte nécessaire.</p><input id="wn" placeholder="Prénom du serveur"><button class="btn" style="width:100%;margin-top:10px" data-a="addw">Ajouter</button>'+WL.map(w=>'<div class="row"><div class="g"><b>'+esc(w.name)+'</b></div><button class="btn alt s" data-a="delw" data-id="'+w.id+'">Retirer</button></div>').join('')+'</div>';
  return h+MB.map(m=>'<div class="card row" style="margin-top:0"><div class="g"><b>'+esc(m.display_name)+'</b><div class="small">'+esc(m.role)+'</div></div>'+(m.user_id!==U.id?'<button class="btn alt s" data-a="delm" data-id="'+m.user_id+'">Retirer</button>':'')+'</div>').join('')}
 function isS(){return B&&(B.role==='patron'||B.role==='guichet')}
 function revToday(){var t0=today(),r=0;H.forEach(function(l){if(l.kind==='v'&&new Date(l.created_at).getTime()>=t0){var p=find(l.product_id);r+=l.qty*(p?Number(p.price):0)}});return r}
@@ -128,9 +135,8 @@ function render(){
  var a=document.getElementById('app'),n=document.getElementById('nav');
  if(!U){a.innerHTML=auth();n.innerHTML='';return}
  if(!B){a.innerHTML=nobar();n.innerHTML='';return}
- if(B.role==='guichet'&&tab==='vente')tab='cmd';
  var np=O.filter(function(o){return o.status==='attente'}).length;
- var tb=isP()?[['vente','Vente'],['cmd','Commandes'],['stock','Stock'],['soir','Soir'],['equipe','Équipe']]:B.role==='guichet'?[['cmd','Commandes'],['equipe','Compte']]:[['vente','Vente'],['cmd','Commandes'],['equipe','Compte']];
+ var tb=isP()?[['vente','Vente'],['cmd','Commandes'],['stock','Stock'],['soir','Soir'],['equipe','Équipe']]:B.role==='guichet'?[['cmd','Commandes'],['vente','Vente'],['equipe','Compte']]:[['vente','Vente'],['cmd','Commandes'],['equipe','Compte']];
  n.innerHTML=tb.map(t=>'<button data-a="tab" data-v="'+t[0]+'" class="'+(tab===t[0]?'on':'')+'">'+t[1]+(t[0]==='cmd'&&isS()&&np?' ('+np+')':'')+'</button>').join('');
  a.innerHTML=head()+lateBanner()+(tab==='vente'?vente():tab==='cmd'?cmd():tab==='stock'?stock():tab==='soir'?soir():equipe())}
 
@@ -142,13 +148,14 @@ async function loadAll(){
  var p=await sb.from('products').select('*').eq('bar_id',B.id).eq('active',true).order('name');
  if(!p.error){P=p.data;try{localStorage.setItem('sb.p',JSON.stringify(P))}catch(e){}}
  else{try{P=JSON.parse(localStorage.getItem('sb.p')||'[]')}catch(e){}}
- var m=await sb.from('members').select('user_id,role,display_name').eq('bar_id',B.id);if(!m.error)MB=m.data}
-async function loadH(){var r=await sb.from('movements').select('product_id,qty,kind,by_user,created_at').order('created_at',{ascending:false}).limit(300);if(!r.error)H=r.data}
+ var m=await sb.from('members').select('user_id,role,display_name').eq('bar_id',B.id);if(!m.error)MB=m.data;
+ var w=await sb.from('waiters').select('id,name').eq('bar_id',B.id).eq('active',true).order('name');if(!w.error)WL=w.data}
+async function loadH(){var r=await sb.from('movements').select('product_id,qty,kind,by_user,created_at,waiter_id,bon_no').order('created_at',{ascending:false}).limit(300);if(r.error)r=await sb.from('movements').select('product_id,qty,kind,by_user,created_at').order('created_at',{ascending:false}).limit(300);if(!r.error)H=r.data}
 async function loadBar(){
  var r=await sb.from('members').select('role,display_name,bars(id,name,trial_ends,paid_until)').eq('user_id',U.id).limit(1);
  if(r.error){try{B=JSON.parse(localStorage.getItem('sb.b')||'null')}catch(e){B=null}}
  else{var m=r.data[0];B=m?{role:m.role,id:m.bars.id,name:m.bars.name,trial_ends:m.bars.trial_ends,paid_until:m.bars.paid_until}:null;try{localStorage.setItem('sb.b',JSON.stringify(B))}catch(e){}}
- if(B){await loadAll();await flush();await loadAll();await loadO();live()}
+ if(B){if(B.role==='guichet'&&tab==='vente')tab='cmd';await loadAll();await flush();await loadAll();await loadO();live()}
  render()}
 async function enter(s){U=s?s.user:null;B=null;if(U)await loadBar();else render()}
 
@@ -176,8 +183,9 @@ document.addEventListener('click',async function(e){
  else if(a==='cmpno'){CMP=false;C={};CASH=''}
  else if(a==='nrole'){nr=b.dataset.v;MC=val('mc');MN=val('mn')}
  else if(a==='ok'){
-  for(var k in T){var p=find(k);if(p){Q.push({bar_id:B.id,product_id:k,qty:T[k],kind:mode});p.stock=Math.max(0,p.stock-T[k])}}
-  T={};mode='v';sq();M='';render();await flush();await loadAll();if(!M)M=Q.length?'Hors connexion : sera envoyé dès le retour du réseau.':'Enregistré.'}
+  var wv=(mode==='v'&&isS()&&WS)?WS:'',bn=Math.floor(+BON)||0;
+  for(var k in T){var p=find(k);if(p){var mv={bar_id:B.id,product_id:k,qty:T[k],kind:mode};if(wv){mv.waiter_id=wv;if(bn>0)mv.bon_no=bn}Q.push(mv);p.stock=Math.max(0,p.stock-T[k])}}
+  T={};mode='v';WS='';BON='';sq();M='';render();await flush();await loadAll();if(!M)M=Q.length?'Hors connexion : sera envoyé dès le retour du réseau.':'Enregistré.'}
  else if(a==='newp'){var n=val('nn');if(n){r=await sb.from('products').insert({bar_id:B.id,name:n,min_stock:Math.max(0,+val('nm')||0),price:Math.max(0,+val('np')||0),cost:Math.max(0,+val('nc')||0)}).select().single();
   if(r.error)M=err(r.error);else{var q=Math.max(0,+val('ns')||0);if(q>0){Q.push({bar_id:B.id,product_id:r.data.id,qty:q,kind:'r'});sq();await flush()}}await loadAll()}}
  else if(a==='plus'){Q.push({bar_id:B.id,product_id:id,qty:+b.dataset.n,kind:'r'});sq();await flush();await loadAll()}
@@ -186,10 +194,14 @@ document.addEventListener('click',async function(e){
   sq();await flush();r=await sb.from('closings').insert({bar_id:B.id,rows:rows,cash_counted:CASH===''?null:(+CASH||0),cash_expected:revToday()});if(r.error)M=err(r.error);else M=rows.length?'Inventaire validé. Écarts : '+rows.map(x=>x.n+' ('+x.e+')').join(', '):'Inventaire validé : aucun écart.';C={};CMP=false;CASH='';await loadAll();await loadH()}
  else if(a==='addm'){var cd=val('mc'),dn=val('mn');if(cd&&dn){r=await sb.from('members').insert({bar_id:B.id,user_id:cd,role:nr,display_name:dn});M=r.error?err(r.error):'Employé ajouté.';if(!r.error){MC='';MN=''}await loadAll()}else M='Entrez le code et le prénom.'}
  else if(a==='delm'){r=await sb.from('members').delete().eq('bar_id',B.id).eq('user_id',id);if(r.error)M=err(r.error);await loadAll()}
+ else if(a==='wsel'){WS=(WS===id?'':id);BON=''}
+ else if(a==='addw'){var wn=val('wn');if(wn){r=await sb.from('waiters').insert({bar_id:B.id,name:wn});M=r.error?err(r.error):'Serveur ajouté.';await loadAll()}else M='Entrez le prénom du serveur.'}
+ else if(a==='delw'){r=await sb.from('waiters').update({active:false}).eq('id',id);if(r.error)M=err(r.error);await loadAll()}
  }catch(x){M=err(x)}
  render()});
 document.addEventListener('change',async function(e){var i=e.target;
  if(i.dataset.lb){lbl=i.value;return}
+ if(i.dataset.bon){BON=i.value;return}
  if(i.dataset.cash){CASH=i.value;render();return}
  if(i.dataset.c!==undefined){C[i.dataset.c]=i.value;render();return}
  if(i.dataset.f){var u={};u[i.dataset.f]=Math.max(0,+i.value||0);var r=await sb.from('products').update(u).eq('id',i.dataset.id);if(r.error)M=err(r.error);await loadAll();render()}});
