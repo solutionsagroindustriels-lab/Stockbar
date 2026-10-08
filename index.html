@@ -64,7 +64,7 @@ function today(){var d=new Date();d.setHours(0,0,0,0);return d.getTime()}
 function find(id){return P.filter(p=>p.id===id)[0]}
 function isP(){return B&&B.role==='patron'}
 function low(p){return p.stock<=p.min_stock}
-function err(e){var m=(e&&e.message)||'Erreur';if(/row-level|permission/i.test(m))return 'Action non autorisée, ou abonnement expiré.';if(/fetch|network/i.test(m))return 'Pas de connexion.';return m}
+function err(e){var m=(e&&e.message)||'Erreur';if(/row-level|permission/i.test(m))return 'Action non autorisée, ou abonnement expiré. ['+(e&&e.code?e.code+' ':'')+m+']';if(/fetch|network/i.test(m))return 'Pas de connexion.';return m}
 function val(id){var e=document.getElementById(id);return e?e.value.trim():''}
 
 function auth(){return '<h1>'+(MODE==='employe'?'StockBar : espace employé':MODE==='patron'?'StockBar : espace patron':'StockBar')+'</h1><p class="sub">'+(MODE==='employe'?'Créez votre compte pour recevoir votre code, ou connectez-vous.':'Connectez-vous pour gérer votre stock.')+'</p><div class="card"><label>E-mail<input id="em" type="email" autocomplete="email"></label><label style="display:block;margin-top:8px">Mot de passe (6 caractères minimum)<input id="pw" type="password" autocomplete="current-password"></label>'+(M?'<div class="w">'+esc(M)+'</div>':'')+'<div class="row"><button class="btn g" data-a="signin">Se connecter</button><button class="btn alt g" data-a="signup">Créer un compte</button></div></div>'}
